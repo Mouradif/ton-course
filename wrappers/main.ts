@@ -1,13 +1,25 @@
 import {Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode} from "ton-core";
 
+export interface MainConfig {
+  address: Address;
+  number: number;
+}
+
+export function parseMainConfig(config: MainConfig) {
+  return beginCell()
+    .storeAddress(config.address)
+    .storeUint(config.number, 32)
+    .endCell();
+}
+
 export default class Main implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell, data: Cell }
   ) {}
 
-  static async createFromConfig(config: any, code: Cell, workchain = 0) {
-    const data = beginCell().endCell();
+  static async createFromConfig(config: MainConfig, code: Cell, workchain = 0) {
+    const data = parseMainConfig(config);
     const init = { code, data };
     const address = contractAddress(workchain, init);
 
