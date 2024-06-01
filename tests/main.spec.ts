@@ -9,29 +9,58 @@ describe('main.fc test', function() {
 
   it('Stores sender', async () => {
     const blockchain = await Blockchain.create();
-    const codeCell = Cell.fromBoc(Buffer.from(hex, "hex"))[0];
+    const codeCell = Cell.fromBoc(Buffer.from(hex, 'hex'))[0];
+    const sender = await blockchain.treasury("sender");
 
-    const myContract = blockchain.openContract(
-      await Main.createFromConfig({}, codeCell)
+    const body = beginCell().storeUint(0n, 32).endCell();
+    const main = blockchain.openContract(
+      await Main.createFromConfig({}, codeCell),
     );
-
-    const senderWallet = await blockchain.treasury("sender");
-
-    const body = beginCell().endCell();
-    const sentMessageResult = await myContract.sendInternalMessage(
-      senderWallet.getSender(),
-      toNano("0.05"),
+    const message = await main.sendInternalMessage(
+      sender.getSender(),
+      toNano('0.01'),
       body,
     );
-
-    expect(sentMessageResult.transactions).toHaveTransaction({
-      from: senderWallet.address,
-      to: myContract.address,
+    expect(message.transactions).toHaveTransaction({
+      from: sender.address,
+      to: main.address,
       success: true,
     });
+    const latestSender = await main.getLatestSender();
+    expect(latestSender.toString()).toBe(sender.address.toString());
+  });
 
-    const lastSender = await myContract.getLatestSender();
+  it('Accumulates value', async () => {
+    const blockchain = await Blockchain.create();
+    const codeCell = Cell.fromBoc(Buffer.from(hex, 'hex'))[0];
+    const sender = await blockchain.treasury("sender");
 
-    expect(lastSender.toString()).toBe(senderWallet.address.toString());
+    const main = blockchain.openContract(
+      await Main.createFromConfig({}, codeCell),
+    );
+
+    const body = beginCell().storeUint(45n, 32).endCell();
+    const message1 = await main.sendInternalMessage(
+      sender.getSender(),
+      toNano('0.01'),
+      body
+    );
+    expect(message1.transactions).toHaveTransaction({
+      from: sender.address,
+      to: main.address,
+      success: true,
+    });
+    const message2 = await main.sendInternalMessage(
+      sender.getSender(),
+      toNano('0.01'),
+      body
+    );
+    expect(message2.transactions).toHaveTransaction({
+      from: sender.address,
+      to: main.address,
+      success: true,
+    });
+    const latestSender = await main.getSum();
+    expect(latestSender).toEqual(90n);
   });
 });
